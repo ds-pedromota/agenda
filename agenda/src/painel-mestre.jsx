@@ -208,6 +208,10 @@ const DEFAULT_TASKS = {
   },
 };
 
+const DEFAULT_QUICK_LISTS = [
+  { id: "qlinbox", title: "Caixa de entrada", items: [] },
+];
+
 const FREQ_BADGE = {
   daily:    { label: "Diário",        bg: "#1e1b4b", color: "#a5b4fc" },
   weekly:   { label: "Semanal",       bg: "#064e3b", color: "#6ee7b7" },
@@ -491,6 +495,204 @@ function SectionTitle({ title, freq, editMode, onTitleChange, onFreqChange, task
   );
 }
 
+function QuickListsPanel({ lists, onSave }) {
+  const [newText, setNewText] = useState({});
+  const [editTitle, setEditTitle] = useState(null);
+  const [titleVal, setTitleVal] = useState("");
+  const titleRef = useRef(null);
+
+  useEffect(() => { if (editTitle) titleRef.current?.focus(); }, [editTitle]);
+
+  const addList = () => {
+    const id = `ql_${Date.now()}`;
+    const next = [...lists, { id, title: "Nova lista", items: [] }];
+    onSave(next);
+    setEditTitle(id);
+    setTitleVal("Nova lista");
+  };
+
+  const deleteList = (listId) => onSave(lists.filter(l => l.id !== listId));
+
+  const commitTitle = (listId) => {
+    onSave(lists.map(l => l.id === listId ? { ...l, title: titleVal.trim() || l.title } : l));
+    setEditTitle(null);
+  };
+
+  const addItem = (listId) => {
+    const text = (newText[listId] || "").trim();
+    if (!text) return;
+    const item = { id: `qi_${Date.now()}`, text, checked: false };
+    onSave(lists.map(l => l.id === listId ? { ...l, items: [...l.items, item] } : l));
+    setNewText(t => ({ ...t, [listId]: "" }));
+  };
+
+  const toggleItem = (listId, itemId) =>
+    onSave(lists.map(l => l.id === listId
+      ? { ...l, items: l.items.map(i => i.id === itemId ? { ...i, checked: !i.checked } : i) }
+      : l));
+
+  const deleteItem = (listId, itemId) =>
+    onSave(lists.map(l => l.id === listId
+      ? { ...l, items: l.items.filter(i => i.id !== itemId) }
+      : l));
+
+  return (
+    <div style={{
+      width: 220, flexShrink: 0,
+      borderRight: "1px solid #1a1f2e",
+      background: "#07090f",
+    }}>
+      <div style={{
+        position: "sticky", top: 0,
+        maxHeight: "100vh", overflowY: "auto",
+        padding: "22px 12px 40px",
+        scrollbarWidth: "none",
+      }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <span style={{
+            fontSize: 10, letterSpacing: "0.15em", color: "#4b6a9b",
+            textTransform: "uppercase", fontFamily: "'Space Mono', monospace",
+          }}>📝 Listas Rápidas</span>
+          <button
+            onClick={addList}
+            title="Nova lista"
+            style={{
+              background: "none", border: "1px solid #1e2130", color: "#4b5563",
+              width: 22, height: 22, borderRadius: 5, cursor: "pointer",
+              fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#4b6a9b"; e.currentTarget.style.color = "#93c5fd"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e2130"; e.currentTarget.style.color = "#4b5563"; }}
+          >+</button>
+        </div>
+
+        {/* Lists */}
+        {lists.map(list => (
+          <div key={list.id} style={{
+            marginBottom: 12, background: "#0d1220",
+            border: "1px solid #1a1f2e", borderRadius: 8, overflow: "hidden",
+          }}>
+            {/* Title row */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "7px 10px 6px", borderBottom: "1px solid #1a1f2e",
+            }}>
+              {editTitle === list.id ? (
+                <input
+                  ref={titleRef}
+                  value={titleVal}
+                  onChange={e => setTitleVal(e.target.value)}
+                  onBlur={() => commitTitle(list.id)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") commitTitle(list.id); }}
+                  style={{
+                    flex: 1, background: "none", border: "none",
+                    borderBottom: "1px solid #4b6a9b",
+                    color: "#e2e8f0", fontSize: 11, fontWeight: 600,
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    outline: "none", padding: "1px 0",
+                  }}
+                />
+              ) : (
+                <span
+                  onClick={() => { setEditTitle(list.id); setTitleVal(list.title); }}
+                  title="Clique para renomear"
+                  style={{
+                    flex: 1, fontSize: 11, fontWeight: 600, color: "#94a3b8",
+                    cursor: "text", letterSpacing: "0.04em",
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                  }}
+                >{list.title}</span>
+              )}
+              <button
+                onClick={() => deleteList(list.id)}
+                title="Remover lista"
+                style={{
+                  background: "none", border: "none", color: "#374151",
+                  cursor: "pointer", fontSize: 10, padding: 0, lineHeight: 1,
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = "#f87171"}
+                onMouseLeave={e => e.currentTarget.style.color = "#374151"}
+              >✕</button>
+            </div>
+
+            {/* Items */}
+            <div style={{ padding: "6px 8px" }}>
+              {list.items.map(item => (
+                <div key={item.id} style={{
+                  display: "flex", alignItems: "flex-start", gap: 6, padding: "3px 2px",
+                }}>
+                  <div
+                    onClick={() => toggleItem(list.id, item.id)}
+                    style={{
+                      width: 13, height: 13, borderRadius: 3, flexShrink: 0, marginTop: 1,
+                      border: item.checked ? "1.5px solid #22c55e" : "1.5px solid #374151",
+                      backgroundColor: item.checked ? "#22c55e22" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", transition: "all 0.15s",
+                    }}
+                  >
+                    {item.checked && <span style={{ fontSize: 9, color: "#22c55e" }}>✓</span>}
+                  </div>
+                  <span style={{
+                    flex: 1, fontSize: 11, lineHeight: 1.4,
+                    color: item.checked ? "#4b5563" : "#94a3b8",
+                    textDecoration: item.checked ? "line-through" : "none",
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    wordBreak: "break-word",
+                  }}>{item.text}</span>
+                  <button
+                    onClick={() => deleteItem(list.id, item.id)}
+                    style={{
+                      background: "none", border: "none", color: "transparent",
+                      cursor: "pointer", fontSize: 9, padding: 0, lineHeight: 1,
+                      flexShrink: 0, transition: "color 0.15s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#f87171"}
+                    onMouseLeave={e => e.currentTarget.style.color = "transparent"}
+                  >✕</button>
+                </div>
+              ))}
+
+              {/* Add item input */}
+              <div style={{ marginTop: list.items.length > 0 ? 5 : 2 }}>
+                <input
+                  value={newText[list.id] || ""}
+                  onChange={e => setNewText(t => ({ ...t, [list.id]: e.target.value }))}
+                  onKeyDown={e => { if (e.key === "Enter") addItem(list.id); }}
+                  placeholder="Adicionar item..."
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    background: "none", border: "none",
+                    borderBottom: "1px solid #1e2130",
+                    color: "#6b7280", fontSize: 11,
+                    padding: "3px 2px", outline: "none",
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    transition: "border-color 0.15s",
+                  }}
+                  onFocus={e => e.target.style.borderBottomColor = "#4b6a9b"}
+                  onBlur={e => e.target.style.borderBottomColor = "#1e2130"}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {lists.length === 0 && (
+          <p style={{
+            fontSize: 11, color: "#374151", textAlign: "center",
+            marginTop: 20, fontFamily: "'IBM Plex Sans', sans-serif",
+          }}>
+            Clique em + para criar uma lista
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("pessoal");
   const [checked, setChecked] = useState({});
@@ -499,31 +701,40 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [editingTask, setEditingTask] = useState(null); // { areaKey, sectionIdx, taskIdx }
   const [editForm, setEditForm] = useState({});
+  const [quickLists, setQuickLists] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const r = await window.storage.get("tasks-checked");
-        if (r) setChecked(JSON.parse(r.value));
-        const t = await window.storage.get("tasks-data");
-        setTasks(t ? JSON.parse(t.value) : JSON.parse(JSON.stringify(DEFAULT_TASKS)));
+        const r = localStorage.getItem("tasks-checked");
+        if (r) setChecked(JSON.parse(r));
+        const t = localStorage.getItem("tasks-data");
+        setTasks(t ? JSON.parse(t) : JSON.parse(JSON.stringify(DEFAULT_TASKS)));
+        const q = localStorage.getItem("quicklists-data");
+        setQuickLists(q ? JSON.parse(q) : JSON.parse(JSON.stringify(DEFAULT_QUICK_LISTS)));
       } catch {
         setTasks(JSON.parse(JSON.stringify(DEFAULT_TASKS)));
+        setQuickLists(JSON.parse(JSON.stringify(DEFAULT_QUICK_LISTS)));
       }
       setLoaded(true);
     })();
   }, []);
 
+  const saveQuickLists = async (next) => {
+    setQuickLists(next);
+    try { localStorage.setItem("quicklists-data", JSON.stringify(next)); } catch {}
+  };
+
   const saveTasks = async (next) => {
     setTasks(next);
-    try { await window.storage.set("tasks-data", JSON.stringify(next)); } catch {}
+    try { localStorage.setItem("tasks-data", JSON.stringify(next)); } catch {}
   };
 
   const toggle = async (id) => {
     if (editMode) return;
     const next = { ...checked, [id]: !checked[id] };
     setChecked(next);
-    try { await window.storage.set("tasks-checked", JSON.stringify(next)); } catch {}
+    try { localStorage.setItem("tasks-checked", JSON.stringify(next)); } catch {}
   };
 
   const startEdit = (areaKey, sectionIdx, taskIdx) => {
@@ -621,10 +832,10 @@ export default function App() {
     const next = JSON.parse(JSON.stringify(DEFAULT_TASKS));
     await saveTasks(next);
     setChecked({});
-    try { await window.storage.set("tasks-checked", JSON.stringify({})); } catch {}
+    try { localStorage.setItem("tasks-checked", JSON.stringify({})); } catch {}
   };
 
-  if (!loaded || !tasks) return (
+  if (!loaded || !tasks || !quickLists) return (
     <div style={{ background: "#0a0c10", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#4b5563", fontFamily: "sans-serif" }}>
       Carregando...
     </div>
@@ -641,9 +852,13 @@ export default function App() {
       minHeight: "100vh", backgroundColor: "#0a0c10",
       fontFamily: "'IBM Plex Sans', sans-serif",
       background: "radial-gradient(ellipse at 20% 10%, #0f1729 0%, #0a0c10 60%)",
+      display: "flex",
     }}>
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
+      <QuickListsPanel lists={quickLists} onSave={saveQuickLists} />
+
+      <div style={{ flex: 1, minWidth: 0 }}>
       {/* Header */}
       <div style={{ padding: "28px 24px 0", borderBottom: "1px solid #1a1f2e" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
@@ -850,7 +1065,7 @@ export default function App() {
             onClick={async () => {
               const next = {};
               setChecked(next);
-              try { await window.storage.set("tasks-checked", JSON.stringify(next)); } catch {}
+              try { localStorage.setItem("tasks-checked", JSON.stringify(next)); } catch {}
             }}
             style={{
               background: "none", border: "1px solid #1e2130", color: "#4b5563",
@@ -881,6 +1096,7 @@ export default function App() {
             ⚠ Restaurar padrão
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
