@@ -495,7 +495,17 @@ function SectionTitle({ title, freq, editMode, onTitleChange, onFreqChange, task
   );
 }
 
-function QuickListsPanel({ lists, onSave }) {
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+function QuickListsPanel({ lists, onSave, onClose }) {
   const [newText, setNewText] = useState({});
   const [editTitle, setEditTitle] = useState(null);
   const [titleVal, setTitleVal] = useState("");
@@ -541,6 +551,7 @@ function QuickListsPanel({ lists, onSave }) {
       width: 220, flexShrink: 0,
       borderRight: "1px solid #1a1f2e",
       background: "#07090f",
+      height: "100%",
     }}>
       <div style={{
         position: "sticky", top: 0,
@@ -554,18 +565,34 @@ function QuickListsPanel({ lists, onSave }) {
             fontSize: 10, letterSpacing: "0.15em", color: "#4b6a9b",
             textTransform: "uppercase", fontFamily: "'Space Mono', monospace",
           }}>📝 Listas Rápidas</span>
-          <button
-            onClick={addList}
-            title="Nova lista"
-            style={{
-              background: "none", border: "1px solid #1e2130", color: "#4b5563",
-              width: 22, height: 22, borderRadius: 5, cursor: "pointer",
-              fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#4b6a9b"; e.currentTarget.style.color = "#93c5fd"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e2130"; e.currentTarget.style.color = "#4b5563"; }}
-          >+</button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={addList}
+              title="Nova lista"
+              style={{
+                background: "none", border: "1px solid #1e2130", color: "#4b5563",
+                width: 22, height: 22, borderRadius: 5, cursor: "pointer",
+                fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#4b6a9b"; e.currentTarget.style.color = "#93c5fd"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e2130"; e.currentTarget.style.color = "#4b5563"; }}
+            >+</button>
+            {onClose && (
+              <button
+                onClick={onClose}
+                title="Fechar"
+                style={{
+                  background: "none", border: "1px solid #1e2130", color: "#4b5563",
+                  width: 22, height: 22, borderRadius: 5, cursor: "pointer",
+                  fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#7f1d1d"; e.currentTarget.style.color = "#f87171"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e2130"; e.currentTarget.style.color = "#4b5563"; }}
+              >✕</button>
+            )}
+          </div>
         </div>
 
         {/* Lists */}
@@ -694,6 +721,8 @@ function QuickListsPanel({ lists, onSave }) {
 }
 
 export default function App() {
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("pessoal");
   const [checked, setChecked] = useState({});
   const [tasks, setTasks] = useState(null);
@@ -856,13 +885,33 @@ export default function App() {
     }}>
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
-      <QuickListsPanel lists={quickLists} onSave={saveQuickLists} />
+      {/* Sidebar — desktop fixo, mobile drawer */}
+      {isMobile ? (
+        <>
+          {sidebarOpen && (
+            <div
+              onClick={() => setSidebarOpen(false)}
+              style={{ position: "fixed", inset: 0, background: "#000000aa", zIndex: 999 }}
+            />
+          )}
+          <div style={{
+            position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 1000,
+            width: 260,
+            transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+            transition: "transform 0.25s ease",
+          }}>
+            <QuickListsPanel lists={quickLists} onSave={saveQuickLists} onClose={() => setSidebarOpen(false)} />
+          </div>
+        </>
+      ) : (
+        <QuickListsPanel lists={quickLists} onSave={saveQuickLists} />
+      )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
       {/* Header */}
-      <div style={{ padding: "28px 24px 0", borderBottom: "1px solid #1a1f2e" }}>
+      <div style={{ padding: isMobile ? "16px 16px 0" : "28px 24px 0", borderBottom: "1px solid #1a1f2e" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 20, gap: 12 }}>
+          <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "flex-end", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
             <div>
               <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.2em", color: "#4b6a9b", textTransform: "uppercase", fontFamily: "'Space Mono', monospace" }}>
                 LISTA MESTRE DE AFAZERES
@@ -951,7 +1000,7 @@ export default function App() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "24px 24px 60px" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", padding: isMobile ? "16px 16px 80px" : "24px 24px 60px" }}>
         {area.sections.map((section, sectionIdx) => (
           <div key={sectionIdx} style={{ marginBottom: 28 }}>
             {/* Cabeçalho da seção */}
@@ -1098,6 +1147,23 @@ export default function App() {
         </div>
       </div>
       </div>
+
+      {/* FAB mobile — abre listas rápidas */}
+      {isMobile && (
+        <button
+          onClick={() => setSidebarOpen(s => !s)}
+          title="Listas Rápidas"
+          style={{
+            position: "fixed", bottom: 20, right: 20, zIndex: 998,
+            width: 50, height: 50, borderRadius: "50%",
+            background: "#1e3a5f", border: "1px solid #3b82f6",
+            color: "#93c5fd", fontSize: 20, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 20px #0008",
+            transition: "all 0.15s",
+          }}
+        >📝</button>
+      )}
     </div>
   );
 }
