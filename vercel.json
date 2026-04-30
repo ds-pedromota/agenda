@@ -1,5 +1,6 @@
 {
   "buildCommand": "cd agenda && npm install && npm run build",
   "outputDirectory": "agenda/dist",
-  "installCommand": "true"
+  "installCommand": "true",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
